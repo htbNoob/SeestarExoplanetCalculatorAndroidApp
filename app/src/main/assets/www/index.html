@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>Seestar Exoplanet Planner</title>
+<link rel="stylesheet" href="css/app.css">
+<script src="lib/plotly.min.js"></script>
+<script type="module" src="js/app.js"></script>
+</head>
+<body>
+<header class="appbar">
+  <div class="appbar-title">
+    <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="9" fill="#f5b544"/><circle cx="21.5" cy="13" r="3.2" fill="#070b16"/></svg>
+    <div>
+      <h1>Seestar Planner</h1>
+      <p id="pageSubtitle">SNR Explorer</p>
+    </div>
+  </div>
+  <button id="nightBtn" class="icon-btn" aria-label="Toggle red night mode" title="Red night mode">
+    <svg viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+  </button>
+</header>
+
+<main>
+<!-- ============================ SNR EXPLORER ============================ -->
+<section class="page" id="page-snr" data-title="SNR Explorer">
+  <p class="lead">SNR as a function of exposure time, star magnitude, and sky brightness, for the selected instrument.</p>
+  <div class="slot-instrument"></div>
+  <div class="card">
+    <label class="field">
+      <span>Sky brightness for panels 1 &amp; 2 <output data-for="snr_sky"></output> mag/arcsec²</span>
+      <input type="range" id="snr_sky" data-persist="snr_sky" min="16" max="22" step="0.1" value="20.5">
+    </label>
+    <label class="field">
+      <span>Fixed exposure for panel 3 <output data-for="snr_exp"></output> s</span>
+      <input type="range" id="snr_exp" data-persist="snr_exp" min="1" max="120" step="1" value="10">
+    </label>
+    <div class="field">
+      <span>Star magnitudes to overlay</span>
+      <div class="chips" id="snr_mags" data-persist="snr_mags" data-options="6,7,8,9,10,11,12,13,14,15,16" data-default="8,10,12,13,14,15"></div>
+    </div>
+    <div class="field">
+      <span>Exposure times to overlay (panel 2, s)</span>
+      <div class="chips" id="snr_exps" data-persist="snr_exps" data-options="1,2,5,10,20,30,60,90,120" data-default="1,5,10,30,60,120"></div>
+    </div>
+  </div>
+  <div id="snr_charts"></div>
+  <details class="card guide">
+    <summary>Sky brightness guide</summary>
+    <table class="simple">
+      <thead><tr><th>mag/arcsec²</th><th>Bortle</th><th>Typical location</th></tr></thead>
+      <tbody>
+        <tr><td>17.0</td><td>9</td><td>Inner city</td></tr>
+        <tr><td>18.5</td><td>7</td><td>Suburban</td></tr>
+        <tr><td>20.5</td><td>4–5</td><td>Rural / suburban border</td></tr>
+        <tr><td>21.7</td><td>1–2</td><td>Truly dark site</td></tr>
+      </tbody>
+    </table>
+  </details>
+</section>
+
+<!-- ======================== LIGHT CURVE SIMULATOR ======================== -->
+<section class="page" id="page-lc" data-title="Light Curve Simulator" hidden>
+  <p class="lead">Simulate a single-target transit light curve for given star/planet parameters and instrument exposure settings.</p>
+  <div class="slot-instrument"></div>
+  <div class="card">
+    <label class="field"><span>Preset</span><select id="lc_preset" data-persist="lc_preset"></select></label>
+    <div class="grid2">
+      <label class="field"><span>Host star magnitude (V)</span><input type="number" step="any" id="lc_star_mag" data-persist="lc_star_mag" value="11.44"></label>
+      <label class="field"><span>Rp/Rs (radius ratio)</span><input type="number" step="any" min="0.001" max="0.9" id="lc_k" data-persist="lc_k" value="0.1508"></label>
+      <label class="field"><span>Impact parameter</span><input type="number" step="any" min="0" max="1.5" id="lc_b" data-persist="lc_b" value="0.147"></label>
+      <label class="field"><span>Duration T14 (h)</span><input type="number" step="any" min="0.05" id="lc_t14" data-persist="lc_t14" value="3.07"></label>
+      <label class="field"><span>Limb-darkening u1</span><input type="number" step="any" id="lc_u1" data-persist="lc_u1" value="0.30"></label>
+      <label class="field"><span>Limb-darkening u2</span><input type="number" step="any" id="lc_u2" data-persist="lc_u2" value="0.28"></label>
+      <label class="field"><span>Exposure time (s)</span><input type="number" step="any" min="0.1" id="lc_exp" data-persist="lc_exp" value="30"></label>
+      <label class="field"><span>Sky (mag/arcsec²)</span><input type="number" step="any" id="lc_sky" data-persist="lc_sky" value="18.0"></label>
+      <label class="field"><span>Observation window (h)</span><input type="number" step="any" min="0.5" id="lc_obs" data-persist="lc_obs" value="5.0"></label>
+      <label class="field"><span>Bin width (min)</span><input type="number" step="any" min="0.1" id="lc_bin" data-persist="lc_bin" value="5.0"></label>
+      <label class="field"><span>Random seed</span><input type="number" step="1" id="lc_seed" data-persist="lc_seed" value="42"></label>
+      <label class="check"><input type="checkbox" id="lc_randomize" data-persist="lc_randomize"><span>Randomize seed on each run</span></label>
+    </div>
+    <p class="notice warn" id="lc_grazing" hidden>This is a grazing transit (b ≥ 1−K); the flat bottom (T2–T3) will vanish.</p>
+    <p class="notice error" id="lc_error" hidden></p>
+    <button class="primary" id="lc_run">Simulate</button>
+  </div>
+  <div id="lc_results"></div>
+</section>
+
+<!-- ========================= TONIGHT'S TRANSITS ========================= -->
+<section class="page" id="page-transits" data-title="Tonight's Best Transits" hidden>
+  <p class="lead">Queries the NASA Exoplanet Archive live and ranks transits observable from your site during tonight's dark window.</p>
+  <div class="slot-site"></div>
+  <div class="slot-instrument"></div>
+  <div class="card">
+    <label class="field">
+      <span>Min. altitude throughout transit <output data-for="tr_min_alt"></output>°</span>
+      <input type="range" id="tr_min_alt" data-persist="tr_min_alt" min="0" max="80" step="1" value="35">
+    </label>
+    <div class="grid2">
+      <label class="field"><span>Bright limit (V, may saturate)</span><input type="number" step="any" id="tr_bright" data-persist="tr_bright" value="5.5"></label>
+      <label class="field"><span>Faint limit (V, poor SNR)</span><input type="number" step="any" id="tr_faint" data-persist="tr_faint" value="10.5"></label>
+      <label class="field"><span>Min. transit depth (%)</span><input type="number" step="any" min="0" id="tr_depth" data-persist="tr_depth" value="1.5"></label>
+      <label class="field"><span>Sky at site (mag/arcsec²)</span><input type="number" step="any" id="tr_sky" class="sky-field" value="18.0"></label>
+    </div>
+    <label class="field">
+      <span>Number of candidates to show <output data-for="tr_ntop"></output></span>
+      <input type="range" id="tr_ntop" data-persist="tr_ntop" min="1" max="15" step="1" value="5">
+    </label>
+    <label class="check"><input type="checkbox" id="tr_toi" data-persist="tr_toi"><span>Include unverified TOI candidates (TESS Objects of Interest)</span></label>
+    <p class="hint">TOIs not yet confirmed as planets (same catalog ExoFOP-TESS serves). Known false positives are excluded, but depths and durations are less reliable and some will turn out to be false positives.</p>
+    <button class="primary" id="tr_run">Search tonight's transits</button>
+  </div>
+  <div id="tr_results"></div>
+</section>
+
+<!-- ===================== TONIGHT'S ECLIPSING BINARIES ===================== -->
+<section class="page" id="page-eb" data-title="Tonight's Eclipsing Binaries" hidden>
+  <p class="lead">Queries AAVSO VSX live (cone search around zenith) plus a curated list of compact-object eclipsing systems (WD/NS/BH), ranked for your site tonight. The VSX query can take 1–2 minutes in dense fields.</p>
+  <div class="slot-site"></div>
+  <div class="slot-instrument"></div>
+  <div class="card">
+    <div class="grid2">
+      <label class="field"><span>Min. primary depth (mag)</span><input type="number" step="any" min="0" id="eb_depth" data-persist="eb_depth" value="0.01"></label>
+      <label class="field"><span>Max. period (days)</span><input type="number" step="any" min="0.01" id="eb_period" data-persist="eb_period" value="365"></label>
+      <label class="field"><span>Min. eclipse duration (min)</span><input type="number" step="any" min="0.1" id="eb_min_dur" data-persist="eb_min_dur" value="5"></label>
+      <label class="field"><span>Max. eclipse duration (h)</span><input type="number" step="any" min="0.1" id="eb_max_dur" data-persist="eb_max_dur" value="2.0"></label>
+      <label class="field"><span>Bright limit (V)</span><input type="number" step="any" id="eb_bright" data-persist="eb_bright" value="5.0"></label>
+      <label class="field"><span>Faint limit (V)</span><input type="number" step="any" id="eb_faint" data-persist="eb_faint" value="13.0"></label>
+      <label class="field"><span>Sky at site (mag/arcsec²)</span><input type="number" step="any" id="eb_sky" class="sky-field" value="18.0"></label>
+    </div>
+    <label class="field">
+      <span>Min. altitude throughout eclipse <output data-for="eb_min_alt"></output>°</span>
+      <input type="range" id="eb_min_alt" data-persist="eb_min_alt" min="0" max="80" step="1" value="50">
+    </label>
+    <p class="hint">Kept high by default: AAVSO VSX reliably times out above ~45–50° cones on dense fields.</p>
+    <label class="field">
+      <span>Number of candidates to show <output data-for="eb_ntop"></output></span>
+      <input type="range" id="eb_ntop" data-persist="eb_ntop" min="1" max="20" step="1" value="10">
+    </label>
+    <label class="check"><input type="checkbox" id="eb_compact" data-persist="eb_compact" checked><span>Include curated compact-object systems (WD/NS/BH)</span></label>
+    <button class="primary" id="eb_run">Search tonight's eclipsing binaries</button>
+  </div>
+  <div id="eb_results"></div>
+</section>
+</main>
+
+<nav class="tabbar">
+  <a href="#snr" data-page="snr">
+    <svg viewBox="0 0 24 24"><path d="M4 20V14M9.3 20V10M14.6 20V6M20 20V3" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" fill="none"/></svg>
+    <span>SNR</span>
+  </a>
+  <a href="#lc" data-page="lc">
+    <svg viewBox="0 0 24 24"><path d="M2 8h5l2.5 7h5L17 8h5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+    <span>Light curve</span>
+  </a>
+  <a href="#transits" data-page="transits">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2" fill="none"/><circle cx="15" cy="10" r="3" fill="currentColor"/></svg>
+    <span>Transits</span>
+  </a>
+  <a href="#eb" data-page="eb">
+    <svg viewBox="0 0 24 24"><circle cx="9" cy="12" r="6" stroke="currentColor" stroke-width="2" fill="none"/><circle cx="16" cy="12" r="5" fill="currentColor"/></svg>
+    <span>Eclipses</span>
+  </a>
+</nav>
+<div id="nightOverlay" aria-hidden="true"></div>
+</body>
+</html>

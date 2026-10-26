@@ -1,0 +1,14 @@
+# Gradle / Android Studio
+.gradle/
+build/
+app/build/
+local.properties
+.idea/
+*.iml
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Release signing material - never commit (the debug.keystore is intentionally committed)
+*.jks
+release.keystore
